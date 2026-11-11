@@ -19,6 +19,7 @@ async function api(path, method='GET', body){
   const headers={'X-CSRF-Token':csrf};
   if(body && !(body instanceof FormData))headers['Content-Type']='application/json';
   const response=await fetch('/api'+path,{method,headers,body:body instanceof FormData?body:body?JSON.stringify(body):undefined});
+  if(response.status===404&&path==='/outlook/accounts')throw new Error('Den kørende app er en ældre version. Klik Afslut appen, åbn appen igen fra genvejen, og genindlæs siden.');
   const result=await response.json();
   if(!response.ok)throw new Error(result.error || (Array.isArray(result.detail)?result.detail.map(e=>e.msg).join(' · '):result.detail) || 'Handlingen kunne ikke gennemføres.');
   return result;

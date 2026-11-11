@@ -1,5 +1,14 @@
 # Validering – 29. oktober 2026
 
+## Rettelse af blandede versioner – 11. november 2026
+
+Brugerens Outlook-kontoknap gav HTTP 404, fordi en Python-server startet før opdateringen stadig kørte. Backend-koden lå i hukommelsen, mens statiske filer blev læst fra den opdaterede projektmappe. Den gamle server blev lukket via API efter kontrol af, at ingen analyse eller udsendelse var aktiv. Genstart med samme datamappe bevarede alle 13 kørsler, og Outlook-kontokaldet returnerede HTTP 200 med én konto.
+
+Version 1.1.1 indlæser brugerfladens filer ved serverstart, så de følger backend-versionen. Session-endpointet oplyser versionen. Genvejen advarer, hvis en anden version allerede kører, og installationen kontrollerer datamappens app-lås, også når appen kører som python.exe. En manglende Outlook-route giver en konkret genstartbesked.
+
+10 målrettede API- og installationstests bestod, inklusive ændrede statiske filer under kørsel og en rigtig Windows-fillås holdt af Python. Edge-browsertesten bestod uden JavaScript-fejl. Den genbyggede pakke blev startet med isolerede data og port 19002; version 1.1.1, statiske filer og Outlook-kontokald blev verificeret. Brugerens server kører nu også 1.1.1 med alle 13 kørsler bevaret. Outlooks afsendelseskode er uændret. Ingen mails blev sendt.
+
+
 ## Outlook Classic-udvidelse – 11. november 2026
 
 Implementeret på `feature/outlook-classic` fra `v1.0-before-outlook`. Afsendelsesmetode og konto vælges under Indstillinger. Klassisk Outlook bruger det eksisterende lokale Outlook-login. Graph er fortsat tilgængelig, og gamle kladder uden metode behandles som Graph.

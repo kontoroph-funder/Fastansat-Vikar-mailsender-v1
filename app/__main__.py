@@ -9,6 +9,7 @@ import webbrowser
 import uvicorn
 
 from .api import create_app
+from .version import VERSION
 
 
 def main():
@@ -28,6 +29,16 @@ def main():
             msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
         except OSError:
             if '--cleanup' not in sys.argv:
+                try:
+                    import requests
+                    existing = requests.get(f'http://127.0.0.1:{port}/api/session', timeout=3).json()
+                    if existing.get('version') != VERSION:
+                        import ctypes
+                        ctypes.windll.user32.MessageBoxW(None,
+                            'En anden version af appen kører allerede. Vælg Afslut appen i browseren, og åbn derefter appen igen fra genvejen.',
+                            'Genstart Fastansatte og Vikarer', 0x40)
+                except (requests.RequestException, ValueError):
+                    pass
                 webbrowser.open(f'http://127.0.0.1:{port}')
             return
     if '--cleanup' in sys.argv:

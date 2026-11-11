@@ -42,3 +42,24 @@ function Get-RuntimeReport {
     encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
     result = subprocess.run(['powershell.exe', '-NoProfile', '-EncodedCommand', encoded], capture_output=True, timeout=30)
     assert result.returncode == 0, result.stderr.decode(errors='replace')
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows file locking')
+def test_installer_detects_source_app_lock(tmp_path):
+    import msvcrt
+    source = (Path(__file__).resolve().parents[1] / 'install.ps1').read_text(encoding='utf-8-sig')
+    block = source[source.index('$runningAppLock ='):source.index('New-Item -ItemType Directory -Force -Path $appRoot')]
+    (tmp_path / 'data').mkdir()
+    lock_path = tmp_path / 'data' / 'app.lock'
+    lock_path.write_bytes(b'0')
+    script = "$ErrorActionPreference='Stop'; $installRoot='" + str(tmp_path).replace("'", "''") + "'\n" + block
+    encoded = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
+    command = ['powershell.exe', '-NoProfile', '-EncodedCommand', encoded]
+    with lock_path.open('r+b') as stream:
+        msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+        try:
+            assert subprocess.run(command, capture_output=True, timeout=15).returncode != 0
+        finally:
+            stream.seek(0)
+            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+    assert subprocess.run(command, capture_output=True, timeout=15).returncode == 0

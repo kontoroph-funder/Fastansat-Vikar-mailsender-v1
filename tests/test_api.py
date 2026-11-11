@@ -51,3 +51,20 @@ def test_cc_upload_edit_clear_and_validation(service, tmp_path):
         assert client.patch(endpoint, json={'cc':'invalid'}).status_code == 400
         assert client.patch(endpoint, json={'cc':''}).json()['cc'] == ''
         assert client.patch(endpoint, json={'cc':'new@example.com'}).json()['cc'] == 'new@example.com'
+
+
+def test_frontend_is_frozen_with_running_backend(service, tmp_path, monkeypatch):
+    from app import api as api_module
+    static = tmp_path / 'static'
+    static.mkdir()
+    (static / 'index.html').write_text('old frontend', encoding='utf-8')
+    (static / 'app.js').write_text('old javascript', encoding='utf-8')
+    monkeypatch.setattr(api_module, 'STATIC', static)
+    app = create_app(service=service)
+    (static / 'index.html').write_text('new frontend', encoding='utf-8')
+    (static / 'app.js').write_text('new javascript', encoding='utf-8')
+    with TestClient(app, base_url='http://127.0.0.1:9000') as client:
+        assert client.get('/').text == 'old frontend'
+        assert client.get('/static/app.js').text == 'old javascript'
+        assert client.get('/static/missing.js').status_code == 404
+        assert client.get('/api/session').json()['version'] == api_module.VERSION

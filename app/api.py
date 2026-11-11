@@ -9,11 +9,11 @@ import threading
 from typing import Literal
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .domain import local_now
+from .version import VERSION
 from .service import Service
 from .graph import DefiniteFailure
 
@@ -94,6 +94,9 @@ def create_app(root=None, service=None):
     port = int(os.environ.get('PAYROLL_PORT', '9000'))
     if not 1024 <= port <= 65535:
         raise ValueError('PAYROLL_PORT skal være mellem 1024 og 65535.')
+    # Freeze assets with this server instance. Updating source files must not pair
+    # a new frontend with Python modules already loaded by an older process.
+    assets = {p.relative_to(STATIC).as_posix(): p.read_bytes() for p in STATIC.rglob('*') if p.is_file()}
     csrf = secrets.token_urlsafe(32)
 
     @asynccontextmanager
@@ -145,7 +148,7 @@ def create_app(root=None, service=None):
 
     @app.get('/')
     def index():
-        return FileResponse(STATIC / 'index.html')
+        return Response(assets['index.html'], media_type='text/html')
 
     def svc():
         return app.state.service
@@ -153,7 +156,7 @@ def create_app(root=None, service=None):
     @app.get('/api/session')
     def session():
         now = local_now()
-        return {'csrf': csrf, 'month': now.month, 'year': now.year, 'account': svc().account()}
+        return {'version': VERSION, 'csrf': csrf, 'month': now.month, 'year': now.year, 'account': svc().account()}
 
     @app.get('/api/settings')
     def settings():
@@ -273,5 +276,11 @@ def create_app(root=None, service=None):
                 threading.Timer(.5, callback).start()
         return {'stopped': True}
 
-    app.mount('/static', StaticFiles(directory=STATIC), name='static')
+    @app.get('/static/{name:path}')
+    def static_file(name: str):
+        if name not in assets:
+            return JSONResponse({'error': 'Filen findes ikke.'}, status_code=404)
+        media_type = {'css': 'text/css', 'js': 'text/javascript', 'html': 'text/html'}.get(name.rsplit('.', 1)[-1], 'application/octet-stream')
+        return Response(assets[name], media_type=media_type)
+
     return app

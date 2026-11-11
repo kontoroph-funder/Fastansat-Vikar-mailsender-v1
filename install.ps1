@@ -7,6 +7,20 @@ $bundle = Join-Path $PSScriptRoot 'FastansatVikar'
 $exe = Join-Path $appRoot 'FastansatVikar.exe'
 if (-not (Test-Path -LiteralPath (Join-Path $bundle 'FastansatVikar.exe'))) { throw 'Pak hele ZIP-filen ud, før du starter installationen.' }
 if (Get-Process -Name FastansatVikar -ErrorAction SilentlyContinue) { throw 'Luk Fastansatte & Vikarer før installation eller opdatering. Brug Afslut appen i brugerfladen.' }
+# The source edition runs as python.exe, so checking the EXE name is insufficient.
+$runningAppLock = Join-Path $installRoot 'data\app.lock'
+if (Test-Path -LiteralPath $runningAppLock) {
+    $lockProbe = $null
+    try {
+        $lockProbe = [System.IO.File]::Open($runningAppLock, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::ReadWrite)
+        $lockProbe.Lock(0, 1)
+        $lockProbe.Unlock(0, 1)
+    } catch {
+        throw 'Appen kører stadig. Vælg Afslut appen i browseren, før du installerer opdateringen. Det gælder også en app startet fra Python.'
+    } finally {
+        if ($lockProbe) { $lockProbe.Dispose() }
+    }
+}
 New-Item -ItemType Directory -Force -Path $appRoot | Out-Null
 Copy-Item -Path (Join-Path $bundle '*') -Destination $appRoot -Recurse -Force
 $shell = New-Object -ComObject WScript.Shell

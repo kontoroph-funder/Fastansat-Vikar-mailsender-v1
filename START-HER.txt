@@ -55,3 +55,9 @@ Du kan slette den udpakkede downloadmappe efter installationen.
 Kladder udløber efter 48 timer. Arbejdsdata ryddes ved afslutning,
 annullering eller udløb. Tekniske kvitteringer gemmes i 365 dage.
 Afsendte mails og PDF'er kan stadig ligge i Outlook.
+
+VED OPDATERING
+Luk den kørende app med "Afslut appen" før installation. At lukke browserfanen
+stopper ikke serveren. Dette gælder også appen startet fra Python/start.cmd.
+Åbn derefter appen igen og genindlæs browseren. Hvis du ser "Not Found" ved
+Outlook-kontoknappen, kan en gammel server stadig være åben.
