@@ -5,7 +5,7 @@ a = Analysis(
     ['run.py'], pathex=[], binaries=[],
     datas=[('app/static', 'app/static'), ('app/pdf_worker.py', 'app')] + collect_data_files('tzdata'),
     hiddenimports=['uvicorn.logging', 'uvicorn.loops.asyncio', 'uvicorn.protocols.http.h11_impl',
-                   'uvicorn.lifespan.on', 'win32timezone', 'pythoncom', 'pywintypes', 'app.excel_worker'],
+                   'uvicorn.lifespan.on', 'win32timezone', 'pythoncom', 'pywintypes', 'app.excel_worker', 'app.outlook_worker'],
     hookspath=[], hooksconfig={}, runtime_hooks=[],
     excludes=['pytest', 'playwright', 'pymupdf', 'fitz', 'numpy', 'onnxruntime', 'tkinter', 'matplotlib'],
     noarchive=False,

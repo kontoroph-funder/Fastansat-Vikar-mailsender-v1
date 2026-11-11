@@ -6,8 +6,11 @@ FASTANSATTE & VIKARER - WINDOWS
    programmet automatisk via WinGet. Godkend eventuelt Windows' forespørgsel
    om administratoradgang. Installationen accepterer pakkens og kildens vilkår.
 4. Åbn "Fastansatte og Vikarer" fra skrivebordet.
-5. Under Indstillinger: angiv Microsoft client-id og tenant-id fra jeres
-   IT-ansvarlige, og vælg "Gem & forbind Microsoft 365". Log selv ind.
+5. Åbn klassisk Outlook og log ind på den konto, som skal sende.
+   I appens Indstillinger: vælg "Klassisk Outlook på denne pc", tryk
+   "Hent konti fra Outlook", vælg afsenderkonto og tryk "Gem indstillinger".
+   Der kræves ikke client-id, tenant-id eller Graph-samtykke ved denne metode.
+   Alternativt kan Microsoft Graph vælges med jeres client-id og tenant-id.
 6. Kontrollér PDF-programmer, gennemgå en PDF og send en test til dig selv.
 
 DET ER INKLUDERET
@@ -27,7 +30,15 @@ App Installer fra Microsoft Store og kør install.cmd igen. Alternativt kan
 LibreOffice installeres fra https://www.libreoffice.org/download/download-libreoffice/
 Hvis jeres IT-politik blokerer installationen, skal IT hjælpe.
 
-MICROSOFT-OPSÆTNING (TIL IT)
+KLASSISK OUTLOOK
+Kræver installeret klassisk Outlook til Windows og en fungerende afsenderkonto.
+Det nye Outlook understøttes ikke. Outlook-licens og installation følger ikke med.
+Appen sender efter din godkendelse. Status "Afleveret til Outlook" betyder,
+at mailen er overdraget til Outlook; kontrollér Udbakke og Sendt post ved tvivl.
+Outlook kan vise sikkerhedsforespørgsler eller blokere efter jeres IT-politik.
+Appen ændrer ikke disse regler. Gamle kladder beholder deres afsendelsesmetode.
+
+MICROSOFT GRAPH-OPSÆTNING (ALTERNATIV, TIL IT)
 Entra-appregistrering: offentlig desktop-app, delegerede rettigheder
 User.Read og Mail.Send samt "Allow public client flows" aktiveret.
 Der bruges ingen client secret. Organisationen kan kræve administratorsamtykke.

@@ -43,6 +43,7 @@ try {
     }
     if (-not $report.excel) { Write-Warning 'Microsoft Excel mangler. Installer og aktivér desktop-Excel med din Microsoft 365-/Office-licens for at bruge Vikarer. Excel Online er ikke tilstrækkeligt.' }
     if (-not $report.libreoffice) { Write-Warning ('LibreOffice/UNO er ikke klar: ' + $report.libreoffice_error + '. Ved en brugerdefineret installation: angiv programstien under Indstillinger i appen.') }
+    if ($report.outlook_classic) { Write-Host 'Klassisk Outlook er fundet. Vælg metoden og afsenderkontoen under Indstillinger.' } else { Write-Host 'Klassisk Outlook er ikke fundet. Outlook-metoden kræver installeret og konfigureret klassisk Outlook; Microsoft Graph kan fortsat vælges.' }
     $dependenciesReady = $report.excel -and $report.libreoffice
 } catch { Write-Warning $_.Exception.Message }
 try {
@@ -55,7 +56,7 @@ try {
 } catch { Write-Warning 'Automatisk oprydning kunne ikke registreres. Oprydning sker ved næste appstart og mens appen er åben.' }
 Write-Host 'Installeret. Åbn Fastansatte og Vikarer via genvejen på skrivebordet.'
 if ($dependenciesReady) {
-    Write-Host 'Begge PDF-programmer er klar. Forbind Microsoft 365 under Indstillinger i appen.'
+    Write-Host 'Begge PDF-programmer er klar. Vælg afsendelsesmetode og afsender under Indstillinger i appen.'
 } else {
     Write-Warning 'Appen er installeret, men mindst ét PDF-program kræver opsætning. Se beskederne ovenfor og START-HER.txt.'
 }

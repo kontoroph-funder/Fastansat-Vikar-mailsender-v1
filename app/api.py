@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .domain import local_now
 from .service import Service
+from .graph import DefiniteFailure
 
 STATIC = Path(__file__).parent / 'static'
 
@@ -63,7 +64,16 @@ class Templates(Strict):
     vikar: Template
 
 
+class OutlookAccount(Strict):
+    id: str = Field(pattern=r'^[a-f0-9]{64}$')
+    email: str = Field(max_length=254)
+    name: str = Field(max_length=500)
+    method: Literal['outlook'] = 'outlook'
+
+
 class Settings(Strict):
+    mail_method: Literal['graph', 'outlook'] = 'graph'
+    outlook_account: OutlookAccount | None = None
     client_id: str = Field(max_length=36, pattern=r'^(?:[0-9a-fA-F-]{36})?$')
     tenant_id: str = Field(min_length=1, max_length=150, pattern=r'^[a-zA-Z0-9.-]+$')
     libreoffice_program: str = Field(max_length=500)
@@ -81,6 +91,9 @@ class Settings(Strict):
 
 def create_app(root=None, service=None):
     root = Path(root or os.environ.get('PAYROLL_DATA_DIR') or Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'FastansatVikar' / 'data')
+    port = int(os.environ.get('PAYROLL_PORT', '9000'))
+    if not 1024 <= port <= 65535:
+        raise ValueError('PAYROLL_PORT skal være mellem 1024 og 65535.')
     csrf = secrets.token_urlsafe(32)
 
     @asynccontextmanager
@@ -102,7 +115,7 @@ def create_app(root=None, service=None):
     @app.middleware('http')
     async def local_only(request: Request, call_next):
         host = request.headers.get('host', '')
-        if host not in ('127.0.0.1:9000', 'localhost:9000'):
+        if host not in (f'127.0.0.1:{port}', f'localhost:{port}'):
             return JSONResponse({'error': 'Ugyldig lokal vært.'}, status_code=403)
         origin = request.headers.get('origin')
         expected_origin = 'http://' + host
@@ -140,7 +153,7 @@ def create_app(root=None, service=None):
     @app.get('/api/session')
     def session():
         now = local_now()
-        return {'csrf': csrf, 'month': now.month, 'year': now.year, 'account': svc().graph.account()}
+        return {'csrf': csrf, 'month': now.month, 'year': now.year, 'account': svc().account()}
 
     @app.get('/api/settings')
     def settings():
@@ -150,9 +163,7 @@ def create_app(root=None, service=None):
     def save_settings(body: Settings):
         with svc().lock:
             svc().ensure_account_change_allowed()
-            if svc().graph.login and svc().graph.login['status'] == 'waiting':
-                raise ValueError('Vent til Microsoft-login er afsluttet.')
-            svc().store.save_settings(body.model_dump())
+            svc().save_settings(body.model_dump())
         return {'saved': True}
 
     @app.get('/api/jobs')
@@ -214,21 +225,37 @@ def create_app(root=None, service=None):
     def test(job_id: str, row_id: str):
         return svc().test_mail(job_id, row_id)
 
+    @app.post('/api/outlook/accounts')
+    def outlook_accounts():
+        with svc().lock:
+            svc().ensure_account_change_allowed()
+        try:
+            return {'accounts': svc().outlook.accounts()}
+        except DefiniteFailure as exc:
+            raise ValueError(str(exc)) from None
+
     @app.post('/api/auth/connect')
     def connect():
         with svc().lock:
             svc().ensure_account_change_allowed()
+            if svc().method() != 'graph':
+                raise ValueError('Klassisk Outlook bruger login fra Outlook-programmet.')
             return svc().graph.start_login()
 
     @app.get('/api/auth/status')
     def auth_status():
-        return {'account': svc().graph.account(), 'login': svc().graph.login}
+        return {'account': svc().account(), 'login': svc().graph.login if svc().method() == 'graph' else None}
 
     @app.post('/api/auth/logout')
     def logout():
         with svc().lock:
             svc().ensure_account_change_allowed()
-            svc().graph.logout()
+            if svc().method() == 'outlook':
+                config = svc().store.settings()
+                config['outlook_account'] = None
+                svc().save_settings(config)
+            else:
+                svc().graph.logout()
         return {'ok': True}
 
     @app.get('/api/runtime')

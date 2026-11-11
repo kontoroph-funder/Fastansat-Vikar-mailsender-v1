@@ -10,6 +10,7 @@ MONTHS = ('januar', 'februar', 'marts', 'april', 'maj', 'juni', 'juli',
           'august', 'september', 'oktober', 'november', 'december')
 DEFAULTS = {
     'client_id': '', 'tenant_id': 'organizations',
+    'mail_method': 'graph', 'outlook_account': None,
     'libreoffice_program': r'C:\Program Files\LibreOffice\program',
     'libreoffice_python': '',
     'templates': {
@@ -65,6 +66,6 @@ def digest(value):
 
 
 def approval_digest(job, ids, account):
-    return digest({'revision': job['revision'], 'account': account, 'month': job['month'], 'year': job['year'], 'cc': job.get('cc', ''),
+    return digest({'revision': job['revision'], 'account': account, 'mail_method': job.get('mail_method', 'graph'), 'month': job['month'], 'year': job['year'], 'cc': job.get('cc', ''),
                    'recipients': [{k: r[k] for k in ('id', 'email', 'subject', 'body', 'pdf', 'sha256')}
                                   for r in job['recipients'] if r['id'] in ids]})

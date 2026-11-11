@@ -16,18 +16,20 @@ from .graph import Graph, DefiniteFailure, payload
 from .payroll_pdf import sanitize_workbook
 from .rendering import render
 from .store import Store
+from .outlook import Outlook
 
 TERMINAL = {'COMPLETE', 'CANCELLED', 'EXPIRED'}
 LOCKED_ROWS = {'SENDING', 'ACCEPTED', 'UNKNOWN', 'FAILED'}
 
 
 class Service:
-    def __init__(self, root, graph=None, renderer=render):
+    def __init__(self, root, graph=None, renderer=render, outlook=None):
         self.root = Path(root).resolve()
         self.store = Store(self.root)
         self.lock = threading.RLock()
         self.worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix='payroll')
         self.graph = graph or Graph(self.root, self.store.settings)
+        self.outlook = outlook or Outlook(self.root, self.store.settings)
         self.renderer = renderer
         self.futures = []
         for job in self.store.all():
@@ -42,10 +44,50 @@ class Service:
                     row['status'] = 'UNKNOWN'
             if job.get('test_status') == 'SENDING':
                 job['test_status'] = 'UNKNOWN'
-                job['test_error'] = 'Testmail blev afbrudt. Kontrollér Sendt post.'
+                job['test_error'] = 'Testmail blev afbrudt. Kontrollér Udbakke og Sendt post.'
             job['approval'] = None
             self.store.put(job)
         self.cleanup()
+
+    def method(self):
+        return self.store.settings().get('mail_method', 'graph')
+
+    def transport(self, job=None):
+        method = self.method()
+        if job is not None and job.get('mail_method', 'graph') != method:
+            raise ValueError('Denne kørsel bruger ' + ('klassisk Outlook' if job.get('mail_method') == 'outlook' else 'Microsoft Graph') + '. Vælg samme afsendelsesmetode under Indstillinger.')
+        return self.outlook if method == 'outlook' else self.graph
+
+    def account(self, job=None, verify=False):
+        transport = self.transport(job)
+        account = transport.account()
+        if verify and self.method() == 'outlook':
+            try:
+                self.outlook.verify(account)
+            except DefiniteFailure as exc:
+                raise ValueError(str(exc)) from None
+        return account
+
+    def validate_message(self, job, *args):
+        return payload(*args, enforce_graph_limit=job.get('mail_method', 'graph') == 'graph')
+
+    def save_settings(self, settings):
+        with self.lock:
+            self.ensure_account_change_allowed()
+            if self.graph.login and self.graph.login['status'] == 'waiting':
+                raise ValueError('Vent til Microsoft-login er afsluttet.')
+            old = self.store.settings()
+            if settings['mail_method'] == 'outlook' and settings.get('outlook_account') and settings.get('outlook_account') != old.get('outlook_account'):
+                try:
+                    self.outlook.verify(settings['outlook_account'])
+                except DefiniteFailure as exc:
+                    raise ValueError(str(exc)) from None
+            if any(old.get(k) != settings.get(k) for k in ('mail_method', 'outlook_account', 'client_id', 'tenant_id')):
+                for job in self.store.all():
+                    if not job.get('cleaned'):
+                        self.touch(job)
+                        self.store.put(job)
+            self.store.save_settings(settings)
 
     def submit(self, fn, *args):
         self.futures = [f for f in self.futures if not f.done()]
@@ -69,6 +111,7 @@ class Service:
             for key in list(row):
                 if key.startswith('_'):
                     row.pop(key)
+        result['mail_method'] = job.get('mail_method', 'graph')
         result['period'] = period_text(result['month'], result['year'])
         return result
 
@@ -99,7 +142,7 @@ class Service:
             directory = self.directory(job_id)
             directory.mkdir(parents=True)
             (directory / 'input.xlsx').write_bytes(raw)
-            job = {'id': job_id, 'kind': kind, 'month': month, 'year': year, 'cc': cc, 'warnings': [],
+            job = {'id': job_id, 'mail_method': self.method(), 'kind': kind, 'month': month, 'year': year, 'cc': cc, 'warnings': [],
                    'filename': Path(filename).name, 'source_hash': source_hash, 'created': time.time(),
                    'expires': time.time() + 48 * 3600, 'revision': 1, 'state': 'ANALYZING', 'error': '',
                    'progress': 'Kontrollerer Excel-filen…', 'recipients': [], 'approval': None,
@@ -141,7 +184,7 @@ class Service:
                 if not row['errors']:
                     try:
                         row.update(self.renderer(sanitized, directory / 'output', row, job['kind'], config))
-                        payload(row['email'], row['subject'], row['body'], 'timeoversigt.pdf',
+                        self.validate_message(job, row['email'], row['subject'], row['body'], 'timeoversigt.pdf',
                                 (directory / 'output' / row['pdf']).read_bytes())
                         row.update(sendable=True, selected=True, status='READY')
                     except Exception as exc:
@@ -247,9 +290,9 @@ class Service:
             self.editable(job)
             if revision != job['revision']:
                 raise ValueError('Kørslen er ændret. Genindlæs og gennemgå den igen.')
-            account = self.graph.account()
+            account = self.account(job, verify=True)
             if not account:
-                raise ValueError('Forbind Microsoft 365 før godkendelse.')
+                raise ValueError('Vælg en afsenderkonto under Indstillinger før godkendelse.')
             if not ids or len(ids) != len(set(ids)):
                 raise ValueError('Vælg mindst én modtager uden dubletter.')
             if any(r['status'] in ('UNKNOWN', 'FAILED') for r in job['recipients']):
@@ -258,7 +301,7 @@ class Service:
                 row = self.row(job, row_id)
                 if not row['sendable'] or row['errors'] or row['status'] != 'READY' or row['needs_review'] or row.get('needs_pdf_review'):
                     raise ValueError('Alle valgte medarbejdere skal være fejlfrie og gennemgået.')
-                payload(row['email'], row['subject'], row['body'], 'timeoversigt.pdf', self.pdf_path(job_id, row).read_bytes(), job.get('cc', ''))
+                self.validate_message(job, row['email'], row['subject'], row['body'], 'timeoversigt.pdf', self.pdf_path(job_id, row).read_bytes(), job.get('cc', ''))
             approval = {'id': uuid.uuid4().hex, 'ids': ids, 'account': account,
                         'digest': approval_digest(job, ids, account), 'created': time.time()}
             job['approval'] = approval
@@ -270,7 +313,7 @@ class Service:
             job = self.store.get(job_id)
             self.editable(job)
             approval = job.get('approval')
-            if not approval or approval['id'] != approval_id or approval['account'] != self.graph.account() or approval['digest'] != approval_digest(job, approval['ids'], approval['account']):
+            if not approval or approval['id'] != approval_id or approval['account'] != self.account(job) or approval['digest'] != approval_digest(job, approval['ids'], approval['account']):
                 raise ValueError('Godkendelsen er ikke længere gyldig.')
             if time.time() - approval['created'] > 600:
                 raise ValueError('Godkendelsen er udløbet. Gennemgå kørslen igen.')
@@ -298,12 +341,12 @@ class Service:
                 self.store.put(job)  # Claim is durable before any external request.
             try:
                 filename = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', row['name'])[:100] + ' - Timeoversigt.pdf'
-                self.graph.send(row['email'], row['subject'], row['body'], filename, raw, approval['account'], job.get('cc', ''))
+                self.transport(job).send(row['email'], row['subject'], row['body'], filename, raw, approval['account'], job.get('cc', ''))
                 result, error = 'ACCEPTED', ''
             except DefiniteFailure as exc:
                 result, error = 'FAILED', str(exc)
             except Exception:
-                result, error = 'UNKNOWN', 'Usikker afsendelse. Kontrollér Sendt post før et nyt forsøg.'
+                result, error = 'UNKNOWN', 'Usikker afsendelse. Kontrollér Udbakke og Sendt post før et nyt forsøg.'
             with self.lock:
                 job = self.store.get(job_id)
                 self.row(job, row_id)['status'] = result
@@ -340,21 +383,21 @@ class Service:
             job = self.store.get(job_id)
             self.editable(job)
             row = self.row(job, row_id)
-            account = self.graph.account()
+            account = self.account(job, verify=True)
             if not account or not row['sendable'] or row['needs_review'] or row.get('needs_pdf_review'):
-                raise ValueError('Forbind Microsoft og vælg en fejlfri, gennemgået medarbejder.')
+                raise ValueError('Vælg en afsenderkonto og en fejlfri, gennemgået medarbejder.')
             raw = self.pdf_path(job_id, row).read_bytes()
-            payload(account['email'], '[TEST] ' + row['subject'], row['body'], 'Test - Timeoversigt.pdf', raw)
+            self.validate_message(job, account['email'], '[TEST] ' + row['subject'], row['body'], 'Test - Timeoversigt.pdf', raw)
             job.update(test_status='SENDING', test_error='')
             self.store.put(job)
             def work():
                 try:
-                    self.graph.send(account['email'], '[TEST] ' + row['subject'], row['body'], 'Test - Timeoversigt.pdf', raw, account)
+                    self.transport(job).send(account['email'], '[TEST] ' + row['subject'], row['body'], 'Test - Timeoversigt.pdf', raw, account)
                     status, error = 'ACCEPTED', ''
                 except DefiniteFailure as exc:
                     status, error = 'FAILED', str(exc)
                 except Exception:
-                    status, error = 'UNKNOWN', 'Testmailens status er ukendt. Kontrollér Sendt post.'
+                    status, error = 'UNKNOWN', 'Testmailens status er ukendt. Kontrollér Udbakke og Sendt post før en ny test.'
                 with self.lock:
                     current = self.store.get(job_id)
                     current.update(test_status=status, test_error=error)
@@ -369,7 +412,7 @@ class Service:
         if directory.exists():
             remove_tree(directory, within=self.root / 'jobs')
         receipt = {key: job[key] for key in ('id', 'kind', 'month', 'year', 'created', 'expires', 'revision', 'source_hash')}
-        receipt.update(state=state, cleaned=True, closed_at=time.time(), counts=counts, recipients=[], error='', filename='', progress='')
+        receipt.update(mail_method=job.get('mail_method', 'graph'), state=state, cleaned=True, closed_at=time.time(), counts=counts, recipients=[], error='', filename='', progress='')
         self.store.put(receipt)
         self.store.prune()
 
@@ -397,6 +440,7 @@ class Service:
                     if path.is_dir() and re.fullmatch(r'[a-f0-9]{32}', path.name) and path.name not in known and path.stat().st_mtime < time.time() - 48 * 3600:
                         remove_tree(path, within=base)
             self.store.prune()
+            self.outlook.cleanup()
 
     def ensure_account_change_allowed(self):
         if any(j['state'] == 'SENDING' or j.get('test_status') == 'SENDING' for j in self.store.all()):

@@ -1,5 +1,19 @@
 # Validering – 29. oktober 2026
 
+## Outlook Classic-udvidelse – 11. november 2026
+
+Implementeret på `feature/outlook-classic` fra `v1.0-before-outlook`. Afsendelsesmetode og konto vælges under Indstillinger. Klassisk Outlook bruger det eksisterende lokale Outlook-login. Graph er fortsat tilgængelig, og gamle kladder uden metode behandles som Graph.
+
+- 88 automatiske tests bestod i Windows-brugersessionen, inklusive DPAPI og 16 nye Outlook-tests. Outlook-tests simulerer afsendelse, kontofejl, offline tilstand, timeout, midlertidige PDF-filer, godkendelser og gamle kladder.
+- Edge-browsertesten bestod uden JavaScript-fejl. Den kontrollerede både Graph og Outlook, kontoindlæsning, gemte indstillinger efter genindlæsning, afsender i godkendelsen og status efter simuleret Outlook-afsendelse. Desktop og mobil blev kontrolleret.
+- `scripts/validate_outlook.py` bestod med rigtig klassisk Outlook: kontoidentifikation, profil/lagerbinding, afsender, modtager og PDF-vedhæftning blev kontrolleret på en usendt syntetisk mail, som blev kasseret. Scriptet kalder aldrig Send.
+- Den genbyggede Windows-pakke bestod `scripts/validate_package.py` med rigtig LibreOffice og Excel: 13 sider for fastansatte og 2 sider for vikarer. Den pakkede Outlook-worker fandt og verificerede en afsenderkonto; ingen mails blev sendt.
+- Testene brugte separate data og port 19001/19002. Standardporten er stadig 9000. Brugerens kørende app blev ikke stoppet.
+- Installationsscriptets PowerShell-syntaks og ZIP-integritet er kontrolleret. Installation på en ren Windows-pc er ikke afprøvet.
+
+Rigtig mailafsendelse og levering er endnu ikke afprøvet med den ønskede afsenderkonto. Før medarbejderudsendelse: vælg konto, importér en testfil, brug **Send test til mig selv**, og kontrollér modtagelse og Sendt post. Outlooks lokale sikkerhedsregler kan vise dialoger eller blokere automatisering. Ved ukendt resultat skal både Udbakke og Sendt post kontrolleres før et nyt forsøg.
+
+
 ## Installationspakke – 11. november 2026
 
 ZIP-filen er genbygget og ZIP-integriteten kontrolleret. Den indeholder appmappen, install.cmd, install.ps1 og START-HER.txt. Python og Python-afhængigheder er indbygget. Installationen forsøger automatisk at installere manglende LibreOffice via WinGet og kontrollerer derefter runtime igen. Excel og Microsoft-konto kræver separat opsætning.

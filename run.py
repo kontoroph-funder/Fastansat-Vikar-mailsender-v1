@@ -6,6 +6,10 @@ import sys
 
 
 def main():
+    if '--outlook-worker' in sys.argv:
+        from app.outlook_worker import main as worker
+        worker()
+        return
     if '--excel-worker' in sys.argv:
         from app.excel_worker import export
         export(*sys.argv[2:])
@@ -24,7 +28,7 @@ if __name__ == '__main__':
     try:
         main()
     except Exception:
-        if '--excel-worker' in sys.argv or '--check-runtime' in sys.argv or '--cleanup' in sys.argv:
+        if '--outlook-worker' in sys.argv or '--excel-worker' in sys.argv or '--check-runtime' in sys.argv or '--cleanup' in sys.argv:
             raise
         if os.name == 'nt':
             import ctypes

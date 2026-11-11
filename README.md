@@ -1,18 +1,28 @@
 # Fastansatte & Vikarer
 
-Lokal Windows-app til at analysere Excel, gennemgå personlige PDF'er, redigere individuelle mails og sende via den indloggede Microsoft 365-konto.
+Lokal Windows-app til at analysere Excel, gennemgå personlige PDF'er, redigere individuelle mails og sende via Microsoft Graph eller en konto i klassisk Outlook til Windows.
 
 ## Installation
 
 1. Pak **FastansatVikar-Windows.zip** helt ud.
 2. Dobbeltklik på **install.cmd**. Appen installeres for den aktuelle Windows-bruger, og der oprettes en genvej på skrivebordet og i Startmenuen. Python er inkluderet i appen; det skal ikke installeres separat. Manglende LibreOffice hentes automatisk via WinGet; Windows kan bede om administratorgodkendelse. Excel skal installeres og aktiveres separat med brugerens Office-licens. Se `START-HER.txt` i ZIP-filen.
 3. Åbn **Fastansatte og Vikarer** fra genvejen. Browseren åbner `http://127.0.0.1:9000`.
-4. Under **Indstillinger** angives Microsoft client-id og tenant-id. Vælg **Gem & forbind Microsoft 365**, åbn Microsoft-login og indtast koden.
+4. Under **Indstillinger** vælges afsendelsesmetode. Til klassisk Outlook: åbn Outlook, log ind på afsenderkontoen, vælg **Klassisk Outlook på denne pc**, tryk **Hent konti fra Outlook**, vælg kontoen og **Gem indstillinger**. Til Graph: angiv Microsoft client-id og tenant-id og vælg **Gem & forbind Microsoft 365**.
 5. Brug **Kontrollér PDF-programmer**. Vikarer kræver installeret Microsoft Excel. Fastansatte kræver LibreOffice med fungerende Python/UNO; programmappe og eventuel Python-sti kan indstilles her.
 
 Selve appinstallationen kræver normalt ikke administratorrettigheder; installation af LibreOffice kan kræve dem. Installationen opretter også en oprydningsopgave for den aktuelle bruger. ZIP-filen indeholder kun appmappen, `install.cmd`, `install.ps1` og `START-HER.txt`. Udviklingsfiler og testdata distribueres ikke. Hvis WinGet mangler, installeres Microsoft App Installer fra Microsoft Store, hvorefter installationen køres igen. Returkode 2 betyder, at appen er installeret, men PDF-programmer kræver opsætning.
 
 Microsoft-appregistreringen skal være en offentlig desktop-app med delegerede rettigheder `User.Read` og `Mail.Send` samt **Allow public client flows** slået til. Der anvendes ingen client secret. Organisationens Microsoft-politikker kan kræve administratorens samtykke. Appen sender fra brugerens egen postkasse; fælles postkasser er ikke implementeret.
+
+## Klassisk Outlook
+
+Outlook-metoden bruger det installerede **klassiske Outlook til Windows** i den aktuelle Windows-brugers profil. Appen kræver ikke client-id, tenant-id eller Graph-samtykke ved denne metode. Den valgte konto skal allerede kunne sende almindelige mails i Outlook. Det nye Outlook understøtter ikke denne COM-integration. Office-licens og Outlook-installation følger ikke med pakken.
+
+Vælg og gem kontoen før import af en ny Excel-fil. Kørsler gemmer deres metode; gamle kørsler og kvitteringer uden metode behandles som Graph. Skift til den passende metode under Indstillinger for at fortsætte en gammel kladde. Konto- og metodeskift ugyldiggør tidligere godkendelser og er blokeret under udsendelse. Outlook-kontoens profil, postkasselager og SMTP-adresse kontrolleres ved godkendelse og igen inden afsendelse. Manglende eller tvetydige konti stopper udsendelsen; standardkontoen bruges aldrig som reserve. Fælles postkasser og aliaser er ikke særskilt implementeret.
+
+Appen sender automatisk efter **Godkend & send nu**; dette er ikke en kladdeeksport. Status **Afleveret til Outlook** betyder, at Outlook har accepteret Send-kaldet, ikke at mailen er leveret. Mails kan vente i Udbakke. Ved afbrudt eller usikkert resultat pauses kørslen; kontrollér både Udbakke og Sendt post, før du klargør et nyt forsøg. En mail, der allerede venter i Udbakke, må ikke gensendes. En ukendt testmail bør også kontrolleres, før der sendes en ny test.
+
+Outlook kan vise sikkerhedsforespørgsler eller blokere automatisering efter organisationens regler. Appen ændrer ikke sikkerhedsindstillinger. Outlook-kald kører i en separat proces med tidsgrænse (45 sekunder for kontokontrol, 180 sekunder for afsendelse). Kun appens worker stoppes ved timeout; brugerens Outlook lukkes aldrig. Midlertidige maildata og PDF-kopier slettes efter kaldet. Rester efter et programnedbrud ryddes efter 48 timer ved appens almindelige oprydning. Outlooks egne kopier i Udbakke/Sendt post omfattes ikke af appens oprydning.
 
 ## Arbejdsgang
 
@@ -63,7 +73,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m app
 ```
 
-`requirements-lock.txt` fastholder versionerne brugt i Windows-pakken (inklusive test- og buildværktøjer). `requirements.txt` er runtime-afhængigheder. `PAYROLL_DATA_DIR` kan pege på en separat datamappe til udvikling. `PAYROLL_NO_BROWSER=1` undlader automatisk browseråbning.
+`requirements-lock.txt` fastholder versionerne brugt i Windows-pakken (inklusive test- og buildværktøjer). `requirements.txt` er runtime-afhængigheder. `PAYROLL_DATA_DIR` kan pege på en separat datamappe til udvikling. `PAYROLL_NO_BROWSER=1` undlader automatisk browseråbning. `PAYROLL_PORT` kan vælge en separat lokal port til isolerede tests; standarden er 9000. Brug altid også en separat `PAYROLL_DATA_DIR` ved parallel test af den pakkede app.
 
 `scripts/validate_browser.py` tester den rigtige brugerflade i installeret Edge med syntetiske filer og en simuleret mailtransport. Der sendes ingen mails. Screenshots gemmes i `.test-data/browser`.
 
@@ -78,3 +88,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
 ## Kodegrundlag
 
 Mail senders CSS/layout og Excel-udskriftsindstillinger er videreført. LoenAutomatiserings XLSX-sanitizer og LibreOffice/UNO-worker er genbrugt. Medarbejderanalyse, fælles API, godkendelse, beskedredigering og frontend-adfærd er samlet i denne app. Det tidligere Gmail-opstartsflow og PySide-udgaven er ikke inkluderet.
+
+`scripts/validate_outlook.py` kontrollerer en rigtig Outlook-konto og klargøring af en syntetisk mail, som kasseres uden at blive sendt. `scripts/validate_browser.py` tester begge afsendelsesmetoder med simuleret mailtransport.

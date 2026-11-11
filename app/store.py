@@ -52,7 +52,7 @@ class Store:
     def settings(self):
         with self.connect() as db:
             row = db.execute('SELECT data FROM settings WHERE id=1').fetchone()
-        return json.loads(row[0]) if row else defaults()
+        return {**defaults(), **json.loads(row[0])} if row else defaults()
 
     def save_settings(self, settings):
         with self.connect() as db:

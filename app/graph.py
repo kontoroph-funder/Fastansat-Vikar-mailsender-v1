@@ -21,7 +21,7 @@ class UnknownDelivery(RuntimeError):
     pass
 
 
-def payload(email, subject, body, filename, raw, cc=''):
+def payload(email, subject, body, filename, raw, cc='', enforce_graph_limit=True):
     try:
         cc = validate_cc(cc)
     except ValueError as exc:
@@ -36,7 +36,7 @@ def payload(email, subject, body, filename, raw, cc=''):
         'attachments': [{'@odata.type': '#microsoft.graph.fileAttachment', 'name': filename,
                          'contentType': 'application/pdf', 'contentBytes': base64.b64encode(raw).decode()}]},
         'saveToSentItems': True}, ensure_ascii=False).encode()
-    if len(result) > 3_800_000:
+    if enforce_graph_limit and len(result) > 3_800_000:
         raise DefiniteFailure('PDF og besked er for store til direkte Outlook-afsendelse (maks. 3,8 MB samlet forespørgsel).')
     return result
 

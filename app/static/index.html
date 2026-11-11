@@ -15,7 +15,7 @@
       <button class="nav-item" data-tab="history">Historik & kladder</button>
       <button class="nav-item" data-tab="settings">Indstillinger</button>
     </nav>
-    <div class="sidebar-card"><p class="card-label">Microsoft 365</p><p id="accountLabel">Ikke forbundet</p><button class="nav-item" id="accountSettings">Forbind konto</button></div>
+    <div class="sidebar-card"><p class="card-label">Afsenderkonto</p><p id="accountLabel">Ikke forbundet</p><button class="nav-item" id="accountSettings">Forbind konto</button></div>
     <div class="sidebar-status"><span class="status-dot"></span><span id="systemStatus" role="status">Klar til import</span><p>Filer behandles lokalt på denne pc.</p><button id="shutdown" class="nav-item">Afslut appen</button></div>
   </aside>
   <main class="main-panel">
@@ -60,7 +60,7 @@
             </form>
             <div id="reviewBox" class="notice warning hidden"><span id="reviewText"></span><button class="secondary-btn" id="markReviewed">PDF og besked er gennemgået</button></div>
             <div class="preview-actions"><button class="secondary-btn" id="testMail">Send test til mig selv</button><button class="primary-btn" id="sendOne">Send kun til denne person</button></div>
-            <div id="reconcileBox" class="notice warning hidden"><p>Kontrollér Sendt post i Outlook. Fortæl derefter, om mailen blev sendt, eller om den skal forsøges igen.</p><button id="markAccepted" class="secondary-btn">Mailen er sendt</button><button id="markRetry" class="secondary-btn">Klargør nyt forsøg</button></div>
+            <div id="reconcileBox" class="notice warning hidden"><p>Kontrollér både Udbakke og Sendt post i Outlook. En mail, der allerede venter i Udbakke, må ikke sendes igen. Fortæl derefter, om mailen blev sendt, eller om den skal forsøges igen.</p><button id="markAccepted" class="secondary-btn">Mailen er sendt</button><button id="markRetry" class="secondary-btn">Klargør nyt forsøg</button></div>
           </div></div>
         </section>
       </div>
@@ -68,11 +68,18 @@
     <section id="historyTab" class="tab-panel"><header class="topbar"><div><p class="eyebrow muted">Dine udsendelser</p><h2>Historik & kladder</h2></div></header><p>Kladder udløber efter 48 timer. Afsluttede kørsler viser kun tekniske kvitteringer.</p><div id="historyList" class="history-list"></div></section>
     <section id="settingsTab" class="tab-panel">
       <header class="topbar"><div><p class="eyebrow muted">Opsætning</p><h2>Indstillinger</h2></div></header>
-      <form id="settingsForm" class="panel settings-form"><h3>Microsoft 365</h3><p class="subtitle">Log ind med den konto, der skal sende begge typer timeoversigter.</p><div class="settings-grid">
+      <form id="settingsForm" class="panel settings-form"><h3>Afsendelse</h3>
+      <label>Afsendelsesmetode<select id="mailMethod"><option value="graph">Microsoft 365 via Graph</option><option value="outlook">Klassisk Outlook på denne pc</option></select></label>
+      <p>Metoden gemmes på nye kørsler. Eksisterende kladder beholder deres metode.</p>
+      <div id="outlookSettings" class="hidden"><p>Åbn klassisk Outlook og log ind på afsenderkontoen. Vælg kontoen her og gem indstillingerne. Der kræves ikke client-id eller tenant-id til denne metode.</p>
+      <button type="button" id="loadOutlook" class="secondary-btn">Hent konti fra Outlook</button>
+      <label>Afsenderkonto<select id="outlookAccount"><option value="">Vælg en konto</option></select></label><p id="outlookStatus" role="status"></p>
+      <p>Appen afleverer mailene til Outlook efter din godkendelse. Kontrollér Udbakke og Sendt post. Outlook kan vise sikkerhedsforespørgsler.</p></div>
+      <div id="graphSettings"><h3>Microsoft 365</h3><p class="subtitle">Log ind med den konto, der skal sende begge typer timeoversigter.</p><div class="settings-grid">
         <label>Microsoft client-id<input id="clientId" maxlength="36"></label><label>Tenant<input id="tenantId" required></label>
       </div><div class="settings-connection"><button type="button" class="primary-btn" id="connect">Gem & forbind Microsoft 365</button><button type="button" class="secondary-btn" id="logout">Log ud</button><span id="connectionStatus"></span></div>
       <div id="loginBox" class="device-login-box hidden"><p>Åbn Microsoft-login og indtast koden:</p><div class="device-login-actions"><code id="loginCode"></code><button type="button" id="copyCode" class="secondary-btn">Kopiér kode</button><a id="loginLink" target="_blank" rel="noopener">Åbn Microsoft-login</a></div></div>
-      <details class="setup-guide"><summary>Opsætning af Microsoft-login</summary><p>Opret en offentlig desktop-app i Microsoft Entra med delegerede rettigheder <code>User.Read</code> og <code>Mail.Send</code>. Aktivér <strong>Allow public client flows</strong>. Der bruges ingen client secret. Kopiér appens client-id og organisationens tenant-id til felterne ovenfor.</p></details>
+      <details class="setup-guide"><summary>Opsætning af Microsoft-login</summary><p>Opret en offentlig desktop-app i Microsoft Entra med delegerede rettigheder <code>User.Read</code> og <code>Mail.Send</code>. Aktivér <strong>Allow public client flows</strong>. Der bruges ingen client secret. Kopiér appens client-id og organisationens tenant-id til felterne ovenfor.</p></details></div>
       <h3 class="section-title">Standardskabeloner</h3><p>Nye kørsler bruger disse skabeloner. Eksisterende kladder beholder deres tekster. Brug <code>{name}</code> og <code>{period}</code>.</p><div class="template-grid">
         <fieldset><legend>Fastansatte</legend><label>Emne<input id="templateFastSubject" required maxlength="250"></label><label>Besked<textarea id="templateFastBody" rows="10" required></textarea></label></fieldset>
         <fieldset><legend>Vikarer</legend><label>Emne<input id="templateVikarSubject" required maxlength="250"></label><label>Besked<textarea id="templateVikarBody" rows="10" required></textarea></label></fieldset>

@@ -1,5 +1,6 @@
 """End-to-end UI test with synthetic PDFs and an in-memory mail transport."""
 import json
+import os
 import socket
 from pathlib import Path
 import sys
@@ -7,6 +8,7 @@ import threading
 import time
 import uuid
 
+PORT = int(os.environ.get('PAYROLL_PORT', '9000'))
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / 'tests'))
@@ -23,7 +25,7 @@ from openpyxl.workbook.defined_name import DefinedName
 
 def main():
     with socket.socket() as probe:
-        if probe.connect_ex(('127.0.0.1', 9000)) == 0:
+        if probe.connect_ex(('127.0.0.1', PORT)) == 0:
             raise RuntimeError('Port 9000 er optaget. Luk appen før browsertesten.')
     run = ROOT / '.test-data' / 'browser' / uuid.uuid4().hex[:8]
     run.mkdir(parents=True)
@@ -34,9 +36,17 @@ def main():
     wb['Bo Vikar']['C10'] = "='[Old.xlsx]Sheet1'!A1"
     wb.save(vikar)
     wb.close()
+    from unittest.mock import Mock
+    from app.outlook_worker import identity
+    from types import SimpleNamespace as NS
+    outlook = Mock()
+    outlook_account = identity(NS(CurrentProfileName='synthetic'), NS(SmtpAddress='outlook@example.com', DisplayName='Outlook test', DeliveryStore=NS(StoreID='synthetic')))
+    outlook.account.return_value = outlook_account
+    outlook.verify.return_value = outlook_account
+    outlook.accounts.return_value = [outlook_account]
     graph = FakeGraph()
-    service = Service(run / 'data', graph=graph, renderer=fake_renderer)
-    server = uvicorn.Server(uvicorn.Config(create_app(service=service), host='127.0.0.1', port=9000, access_log=False, log_level='warning'))
+    service = Service(run / 'data', graph=graph, renderer=fake_renderer, outlook=outlook)
+    server = uvicorn.Server(uvicorn.Config(create_app(service=service), host='127.0.0.1', port=PORT, access_log=False, log_level='warning'))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     errors = []
@@ -50,7 +60,7 @@ def main():
                 executable_path=r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe', viewport={'width':1500,'height':1000})
             page = browser.pages[0]
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto('http://127.0.0.1:9000')
+            page.goto(f'http://127.0.0.1:{PORT}')
             expect(page.locator('#month option')).to_have_count(12)
             expect(page.locator('#year option')).to_have_count(11)
             page.locator('#month').select_option('1')
@@ -117,6 +127,32 @@ def main():
             expect(page.locator('#templateFastBody')).to_be_visible()
             page.evaluate('window.scrollTo(0,0)')
             page.screenshot(path=str(run / 'settings.png'), full_page=True)
+            page.locator('#mailMethod').select_option('outlook')
+            expect(page.locator('#graphSettings')).not_to_be_visible()
+            page.locator('#loadOutlook').click()
+            expect(page.locator('#outlookAccount option')).to_have_count(2)
+            page.locator('#outlookAccount').select_option(outlook_account['id'])
+            page.get_by_role('button', name='Gem indstillinger', exact=True).click()
+            expect(page.locator('#accountLabel')).to_contain_text('outlook@example.com')
+            page.reload()
+            page.get_by_role('button', name='Indstillinger', exact=True).click()
+            expect(page.locator('#outlookAccount')).to_have_value(outlook_account['id'])
+            page.screenshot(path=str(run/'outlook-settings.png'), full_page=True)
+            page.get_by_role('button', name='Oversigt', exact=True).click()
+            page.locator('#newJob').click()
+            page.locator('#month').select_option('3')
+            page.locator('#kind').select_option('fastansat')
+            page.locator('#fileInput').set_input_files(workbook)
+            page.locator('#analyze').click()
+            expect(page.locator('#statReady')).to_have_text('1', timeout=15000)
+            page.locator('#sendSelected').click()
+            expect(page.locator('#approvalSender')).to_contain_text('outlook@example.com')
+            expect(page.locator('#approvalSender')).to_contain_text('Klassisk Outlook')
+            page.locator('#confirmSend').click()
+            expect(page.locator('#systemStatus')).to_have_text('Afsluttet', timeout=15000)
+            expect(page.locator('#tableEmpty')).to_contain_text('afleveret til Outlook')
+            assert outlook.send.call_count == 1
+            assert len(graph.sent) == 2
             assert not errors, errors
             browser.close()
         print(json.dumps({'passed':True,'browser_errors':errors,'simulated_emails':len(graph.sent),'artifacts':str(run)},ensure_ascii=False))

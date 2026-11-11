@@ -8,6 +8,7 @@ import sys
 import time
 import uuid
 
+PORT = int(os.environ.get('PAYROLL_PORT', '9000'))
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / 'tests'))
@@ -21,7 +22,7 @@ from openpyxl.workbook.defined_name import DefinedName
 
 def main():
     with socket.socket() as probe:
-        if probe.connect_ex(('127.0.0.1', 9000)) == 0:
+        if probe.connect_ex(('127.0.0.1', PORT)) == 0:
             raise RuntimeError('Port 9000 er optaget. Luk appen før pakketesten.')
     run = ROOT / '.test-data' / 'package' / uuid.uuid4().hex[:8]
     run.mkdir(parents=True)
@@ -34,7 +35,7 @@ def main():
     env = dict(os.environ, PAYROLL_DATA_DIR=str(run / 'data'), PAYROLL_NO_BROWSER='1')
     process = subprocess.Popen([str(exe)], cwd=run, env=env, creationflags=subprocess.CREATE_NO_WINDOW)
     session = requests.Session()
-    origin = 'http://127.0.0.1:9000'
+    origin = f'http://127.0.0.1:{PORT}'
     try:
         for _ in range(120):
             if process.poll() is not None:
@@ -83,6 +84,20 @@ def main():
             assert pages == (13 if kind=='fastansat' else 2)
             report['pdfs'][kind]=pages
             print(f'Packaged {kind}: {pages} pages OK',flush=True)
+        if report.get('outlook_classic'):
+            response = session.post(origin+'/api/outlook/accounts', timeout=60)
+            response.raise_for_status()
+            accounts = response.json()['accounts']
+            report['outlook_accounts'] = len(accounts)
+            if accounts:
+                settings = session.get(origin+'/api/settings', timeout=10).json()
+                settings.update(mail_method='outlook', outlook_account=accounts[0])
+                response = session.put(origin+'/api/settings', json=settings, timeout=60)
+                response.raise_for_status()
+                assert session.get(origin+'/api/auth/status', timeout=10).json()['account'] == accounts[0]
+                assert all(j['mail_method'] == 'graph' for j in session.get(origin+'/api/jobs', timeout=10).json())
+                report['outlook_selection_verified'] = True
+                print('Packaged Outlook: discovery and selected-account verification OK; no mail sent', flush=True)
         response=session.post(origin+'/api/shutdown',timeout=10)
         response.raise_for_status()
         process.wait(timeout=30)
