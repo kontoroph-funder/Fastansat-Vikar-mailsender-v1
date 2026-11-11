@@ -1,0 +1,6 @@
+-r requirements.txt
+pytest>=8,<10
+httpx>=0.28,<1
+playwright>=1.50,<2
+pyinstaller>=6,<7
+pymupdf>=1.26,<3

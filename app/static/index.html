@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Fastansatte & Vikarer · Timeoversigter</title>
+  <link rel="stylesheet" href="/static/styles.css"><link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">FV</div><div><p class="eyebrow">Timeoversigter</p><h1>Fastansatte<br>& Vikarer</h1></div></div>
+    <nav class="nav" aria-label="Hovedmenu">
+      <button class="nav-item active" data-tab="overview">Oversigt</button>
+      <button class="nav-item" data-tab="history">Historik & kladder</button>
+      <button class="nav-item" data-tab="settings">Indstillinger</button>
+    </nav>
+    <div class="sidebar-card"><p class="card-label">Microsoft 365</p><p id="accountLabel">Ikke forbundet</p><button class="nav-item" id="accountSettings">Forbind konto</button></div>
+    <div class="sidebar-status"><span class="status-dot"></span><span id="systemStatus" role="status">Klar til import</span><p>Filer behandles lokalt på denne pc.</p><button id="shutdown" class="nav-item">Afslut appen</button></div>
+  </aside>
+  <main class="main-panel">
+    <div id="notice" class="notice hidden" role="alert"></div>
+    <section id="overviewTab" class="tab-panel active">
+      <header class="topbar"><div><p class="eyebrow muted">Månedens udsendelse</p><h2>Personlige timeoversigter</h2><p class="subtitle">Gennemgå, tilpas og send fra ét sted.</p></div><button id="newJob" class="secondary-btn">Ny kørsel</button></header>
+      <div class="filters">
+        <label>Medarbejdertype<select id="kind"><option value="fastansat">Fastansatte</option><option value="vikar">Vikarer</option></select></label>
+        <label>Måned<select id="month"></select></label><label>År<select id="year"></select></label>
+        <div class="period-summary"><span>Lønperiode</span><strong id="periodLabel"></strong></div>
+      </div>
+      <section class="hero-panel">
+        <div><p class="eyebrow muted">Excel-fil</p><h3 id="fileName">Ingen fil valgt</h3><p id="jobInfo" class="subtitle">Vælg en .xlsx-fil for at komme i gang.</p></div>
+        <div class="hero-actions"><input type="file" id="fileInput" accept=".xlsx" hidden><button class="secondary-btn" id="chooseFile">Vælg Excel-fil</button><button class="primary-btn" id="analyze">Analysér fil</button></div>
+      </section>
+      <form id="ccForm" class="panel cc-panel"><label for="cc">Cc (valgfri mailadresse)</label><div class="cc-actions"><input type="email" id="cc" maxlength="254" placeholder="administration@eksempel.dk"><button class="secondary-btn" id="saveCc" type="submit">Gem Cc</button><span id="ccStatus" role="status"></span></div><p class="subtitle">Modtageren får en kopi af hver medarbejdermail og dens PDF. Testmail sendes kun til dig selv.</p></form>
+      <div class="stats-grid">
+        <article class="stat-card"><span>Medarbejderark</span><strong id="statTotal">0</strong></article>
+        <article class="stat-card"><span>Klar til udsendelse</span><strong id="statReady">0</strong></article>
+        <article class="stat-card"><span>Med fejl</span><strong id="statError">0</strong></article>
+        <article class="stat-card"><span>Accepteret af Outlook</span><strong id="statSent">0</strong></article>
+      </div>
+      <div id="progress" class="notice info hidden" role="status"></div>
+      <details id="warningPanel" class="error-panel hidden"><summary id="warningSummary">Bemærkninger til Excel-filen</summary><div id="warningList"></div></details>
+      <details id="errorPanel" class="error-panel hidden" open><summary id="errorSummary">Ark med fejl</summary><p>Korrekte medarbejdere kan stadig sendes. Ret de viste ark i Excel, og indlæs rettelserne som en ny kørsel.</p><div id="errorList"></div></details>
+      <div class="content-grid">
+        <section class="panel table-panel">
+          <div class="panel-header"><div><h3>Medarbejderoversigt</h3><small id="readySummary">Ingen fil analyseret</small></div><button class="primary-btn" id="sendSelected" disabled>Gennemgå & send</button></div>
+          <div class="table-wrap"><table><thead><tr><th class="checkbox-col"><input type="checkbox" id="selectAll" aria-label="Vælg alle sendbare medarbejdere"></th><th>Medarbejder / ark</th><th>E-mail</th><th>Status</th></tr></thead><tbody id="employees"></tbody></table></div>
+          <div id="tableEmpty" class="empty-state"><div class="empty-icon">↥</div><h3>Start med månedens Excel-fil</h3><p>Her får du overblik over modtagere, PDF’er og eventuelle fejl.</p></div>
+          <div class="panel-footer"><span id="selectionLabel">0 modtagere valgt</span><button id="cancelJob" class="text-btn hidden">Afslut og slet arbejdsfiler</button></div>
+        </section>
+        <section class="panel detail-panel">
+          <div class="panel-header"><h3>Personlig besked & PDF</h3><span id="saveStatus" role="status"></span></div>
+          <div class="preview-box"><p id="detailEmpty" class="preview-empty">Vælg en medarbejder for at gennemgå PDF og tilpasse beskeden.</p>
+          <div id="detail" class="hidden">
+            <span id="detailStatus" class="status-pill"></span><h3 id="detailName"></h3><p id="detailEmail"></p><p id="detailSheet" class="subtitle"></p>
+            <div id="rowWarnings" class="row-warnings"></div>
+            <div class="preview-actions"><a id="pdfOpen" class="preview-link" target="_blank" rel="noopener">Åbn PDF</a><a id="pdfDownload" class="text-btn">Download PDF</a></div>
+            <form id="messageForm" class="message-form"><label>Emne<input id="subject" maxlength="250" required></label><label>Mailtekst<textarea id="body" rows="12" maxlength="50000" required></textarea></label>
+              <div class="form-actions"><button class="secondary-btn" id="saveMessage" type="submit">Gem besked</button><button type="button" class="text-btn" id="resetMessage">Nulstil til skabelon</button></div>
+            </form>
+            <div id="reviewBox" class="notice warning hidden"><span id="reviewText"></span><button class="secondary-btn" id="markReviewed">PDF og besked er gennemgået</button></div>
+            <div class="preview-actions"><button class="secondary-btn" id="testMail">Send test til mig selv</button><button class="primary-btn" id="sendOne">Send kun til denne person</button></div>
+            <div id="reconcileBox" class="notice warning hidden"><p>Kontrollér Sendt post i Outlook. Fortæl derefter, om mailen blev sendt, eller om den skal forsøges igen.</p><button id="markAccepted" class="secondary-btn">Mailen er sendt</button><button id="markRetry" class="secondary-btn">Klargør nyt forsøg</button></div>
+          </div></div>
+        </section>
+      </div>
+    </section>
+    <section id="historyTab" class="tab-panel"><header class="topbar"><div><p class="eyebrow muted">Dine udsendelser</p><h2>Historik & kladder</h2></div></header><p>Kladder udløber efter 48 timer. Afsluttede kørsler viser kun tekniske kvitteringer.</p><div id="historyList" class="history-list"></div></section>
+    <section id="settingsTab" class="tab-panel">
+      <header class="topbar"><div><p class="eyebrow muted">Opsætning</p><h2>Indstillinger</h2></div></header>
+      <form id="settingsForm" class="panel settings-form"><h3>Microsoft 365</h3><p class="subtitle">Log ind med den konto, der skal sende begge typer timeoversigter.</p><div class="settings-grid">
+        <label>Microsoft client-id<input id="clientId" maxlength="36"></label><label>Tenant<input id="tenantId" required></label>
+      </div><div class="settings-connection"><button type="button" class="primary-btn" id="connect">Gem & forbind Microsoft 365</button><button type="button" class="secondary-btn" id="logout">Log ud</button><span id="connectionStatus"></span></div>
+      <div id="loginBox" class="device-login-box hidden"><p>Åbn Microsoft-login og indtast koden:</p><div class="device-login-actions"><code id="loginCode"></code><button type="button" id="copyCode" class="secondary-btn">Kopiér kode</button><a id="loginLink" target="_blank" rel="noopener">Åbn Microsoft-login</a></div></div>
+      <details class="setup-guide"><summary>Opsætning af Microsoft-login</summary><p>Opret en offentlig desktop-app i Microsoft Entra med delegerede rettigheder <code>User.Read</code> og <code>Mail.Send</code>. Aktivér <strong>Allow public client flows</strong>. Der bruges ingen client secret. Kopiér appens client-id og organisationens tenant-id til felterne ovenfor.</p></details>
+      <h3 class="section-title">Standardskabeloner</h3><p>Nye kørsler bruger disse skabeloner. Eksisterende kladder beholder deres tekster. Brug <code>{name}</code> og <code>{period}</code>.</p><div class="template-grid">
+        <fieldset><legend>Fastansatte</legend><label>Emne<input id="templateFastSubject" required maxlength="250"></label><label>Besked<textarea id="templateFastBody" rows="10" required></textarea></label></fieldset>
+        <fieldset><legend>Vikarer</legend><label>Emne<input id="templateVikarSubject" required maxlength="250"></label><label>Besked<textarea id="templateVikarBody" rows="10" required></textarea></label></fieldset>
+      </div><h3 class="section-title">PDF-programmer</h3><div class="settings-grid"><label>LibreOffice-programmappe<input id="loProgram"></label><label>LibreOffice Python (valgfri sti)<input id="loPython"></label></div><p id="runtimeStatus"></p><div class="form-actions"><button class="primary-btn" type="submit">Gem indstillinger</button><button class="secondary-btn" type="button" id="checkRuntime">Kontrollér PDF-programmer</button></div></form>
+    </section>
+  </main>
+</div>
+<dialog id="approvalDialog"><div class="dialog-inner"><p class="eyebrow muted">Kontrollér udsendelsen</p><h2>Godkend & send</h2><p id="approvalSender"></p><p id="approvalPeriod"></p><p id="approvalCc"></p><h3 id="approvalCount"></h3><ul id="approvalRecipients"></ul><h3>Udelades fra denne udsendelse</h3><ul id="approvalExcluded"></ul><p class="subtitle">Hver modtager får sin egen besked og den gennemgåede PDF.</p><div class="form-actions"><button id="confirmSend" class="primary-btn">Godkend & send nu</button><button id="closeApproval" class="secondary-btn">Tilbage</button></div></div></dialog>
+</body></html>

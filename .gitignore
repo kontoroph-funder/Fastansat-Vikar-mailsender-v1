@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.test-data/
+dist/
+build/
+*.log
+.env
+.env.*
+!.env.example
+*.dpapi
+*.sqlite3
+*.sqlite3-*
+data/
+credentials/

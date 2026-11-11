@@ -1,0 +1,46 @@
+FASTANSATTE & VIKARER - WINDOWS
+
+1. Download ZIP-filen, højreklik på den, og vælg "Udpak alle".
+2. Åbn den udpakkede mappe, og dobbeltklik på install.cmd.
+3. Vent, mens appen installeres. Mangler LibreOffice, henter installationen
+   programmet automatisk via WinGet. Godkend eventuelt Windows' forespørgsel
+   om administratoradgang. Installationen accepterer pakkens og kildens vilkår.
+4. Åbn "Fastansatte og Vikarer" fra skrivebordet.
+5. Under Indstillinger: angiv Microsoft client-id og tenant-id fra jeres
+   IT-ansvarlige, og vælg "Gem & forbind Microsoft 365". Log selv ind.
+6. Kontrollér PDF-programmer, gennemgå en PDF og send en test til dig selv.
+
+DET ER INKLUDERET
+Python og alle appens Python-biblioteker. Du skal ikke installere Python,
+bruge en terminal eller starte en server manuelt. Genvejen starter appen
+og åbner browseren. Appen kører lokalt, ikke på en offentlig hjemmeside.
+
+KRAV
+Windows 10/11, 64-bit x64, og internet til downloads og Microsoft 365.
+Fastansatte kræver LibreOffice med Python/UNO (installeres automatisk, hvis
+det mangler og WinGet er tilgængeligt). Vikarer kræver installeret og aktiveret
+Microsoft Excel til Windows. Excel Online kan ikke bruges. Excel-licens og
+installation følger ikke med denne pakke og skal håndteres af jer selv/IT.
+
+WinGet følger med Microsofts App Installer. Hvis WinGet mangler, installér
+App Installer fra Microsoft Store og kør install.cmd igen. Alternativt kan
+LibreOffice installeres fra https://www.libreoffice.org/download/download-libreoffice/
+Hvis jeres IT-politik blokerer installationen, skal IT hjælpe.
+
+MICROSOFT-OPSÆTNING (TIL IT)
+Entra-appregistrering: offentlig desktop-app, delegerede rettigheder
+User.Read og Mail.Send samt "Allow public client flows" aktiveret.
+Der bruges ingen client secret. Organisationen kan kræve administratorsamtykke.
+Appen sender fra den indloggede brugers egen postkasse.
+
+DATA OG OPDATERING
+Appen installeres for den aktuelle Windows-bruger under
+%LOCALAPPDATA%\FastansatVikar\application.
+Data gemmes under %LOCALAPPDATA%\FastansatVikar\data.
+Luk appen med "Afslut appen", før du kører en ny installation.
+Installationen bevarer eksisterende arbejdsdata og indstillinger.
+Du kan slette den udpakkede downloadmappe efter installationen.
+
+Kladder udløber efter 48 timer. Arbejdsdata ryddes ved afslutning,
+annullering eller udløb. Tekniske kvitteringer gemmes i 365 dage.
+Afsendte mails og PDF'er kan stadig ligge i Outlook.
